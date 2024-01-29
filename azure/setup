@@ -1,0 +1,10 @@
+#!/usr/bin/env zsh
+#
+source ../LIB/homebrew.zsh
+source ../LIB/functions.zsh
+
+install_brewfile_packages
+install_functions azure
+
+echo "Logging into azure (will open browser)"
+az login
