@@ -5,6 +5,7 @@ showHelp() {
     echo "Usage: $0 [options]"
     echo "Options:"
     echo "  --set         Set a new secret in a Key Vault"
+    echo "  --set-from-file Set a new secret from a file in a Key Vault"
     echo "  --delete      Delete a secret from a Key Vault"
     echo "  -h, --help    Show this help message"
 }
@@ -30,6 +31,15 @@ setSecret() {
     az keyvault secret set --vault-name $vaultName --name $secretName --value "$secretValue" >/dev/null
 }
 
+# Set a secret in a specific Key Vault from a file
+setSecretFromFile() {
+    local vaultName="$1"
+    local secretName="$2"
+    local filePath="$3"
+    local secretValue=$(<"$filePath")
+    az keyvault secret set --vault-name $vaultName --name $secretName --value "$secretValue" >/dev/null
+}
+
 # Delete a secret from a specific Key Vault
 deleteSecret() {
     local vaultName="$1"
@@ -42,10 +52,10 @@ keyVaults=("${(@f)$(az keyvault list --query '[].name' --output tsv)}")
 
 if [ -z "$keyVaults" ]; then
     echo "No Key Vaults accessible."
-    exit 1
+    return 1
 fi
 
-# Check if the script was called with the '--set' or '--delete' flag
+# Check if the script was called with the '--set', '--set-from-file', or '--delete' flag
 if [[ "$1" == "--set" ]]; then
     # Prompt for Key Vault selection
     echo "Select a Key Vault to set the secret:"
@@ -69,7 +79,7 @@ if [[ "$1" == "--set" ]]; then
         # Check if the entered values match
         if [ "$secretValue" != "$confirmValue" ]; then
             echo "Error: Entered values do not match. Secret not set."
-            exit 1
+            return 1
         fi
 
         # Set the secret
@@ -77,7 +87,34 @@ if [[ "$1" == "--set" ]]; then
         echo "Secret '$secretName' set in '$selectedVault'."
     else
         echo "No Key Vault selected. Exiting."
-        exit 1
+        return 1
+    fi
+elif [[ "$1" == "--set-from-file" ]]; then
+    # Prompt for Key Vault selection
+    echo "Select a Key Vault to set the secret from a file:"
+    selectedVault=$(printf "%s\n" "${(@)keyVaults}" | fzf --tac)
+    
+    if [ -n "$selectedVault" ]; then
+        # Prompt for secret name
+        echo "Enter secret name:"
+        read secretName
+
+        # Prompt for file path
+        echo "Enter path to the file containing the secret value:"
+        read filePath
+
+        # Check if the file exists
+        if [ -f "$filePath" ]; then
+            # Set the secret from file
+            setSecretFromFile $selectedVault $secretName "$filePath"
+            echo "Secret '$secretName' set in '$selectedVault' from file."
+        else
+            echo "Error: File not found. Secret not set."
+            return 1
+        fi
+    else
+        echo "No Key Vault selected. Exiting."
+        return 1
     fi
 elif [[ "$1" == "--delete" ]]; then
     # List all accessible secrets in the format <vault>: <key>
@@ -93,32 +130,11 @@ elif [[ "$1" == "--delete" ]]; then
 
     if [ -z "$accessibleSecrets" ]; then
         echo "No accessible secrets found."
-        exit 1
+        return 1
     fi
 
-    # Use fzf for interactive selection
-    selected=$(printf "%s\n" "${(@)accessibleSecrets}" | fzf --tac)
-
-    if [ -n "$selected" ]; then
-        # Extract vault and secret names
-        vaultName=${selected%%:*}
-        secretName=${selected#*: }
-
-        # Prompt for confirmation before deleting
-        echo "Are you sure you want to delete the secret '$secretName' from '$vaultName'? (y/n)"
-        read confirmation
-        if [ "$confirmation" = "y" ]; then
-            # Delete the selected secret
-            deleteSecret $vaultName $secretName
-            echo "Secret '$secretName' deleted from '$vaultName'."
-        else
-            echo "Deletion canceled."
-        fi
-    else
-        echo "No secret selected for deletion. Exiting."
-        exit 1
-    fi
 else
+    # Default behavior for just 'azv' without additional arguments
     # Store accessible secrets in an array
     accessibleSecrets=()
 
