@@ -5,6 +5,7 @@ source ../LIB/functions.zsh
 
 install_brewfile_packages
 install_functions azure
+add_azure_prompt_to_zshrc
 
 echo "Logging into azure (will open browser)"
-az login
+az login --output none
