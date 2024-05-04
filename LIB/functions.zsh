@@ -77,6 +77,6 @@ function add_azure_prompt_to_zshrc() {
     add_to_zshrc "$function_text" "$ZSHRC"
     add_to_zshrc "$prompt_text" "$ZSHRC"
 
-echo "\e[1;32mRun 'source $ZSHRC' to apply changes.\e[0m"
+    echo "\e[1;32mRun 'source $ZSHRC' to apply changes.\e[0m"
 
 }
