@@ -1,0 +1,46 @@
+#!/bin/zsh
+
+# Function to display script usage
+showHelp() {
+    echo "Usage: $0"
+    echo "Log in to Azure and set the Azure subscription interactively."
+}
+
+# Check if the script was called with the help option
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    showHelp
+    return
+fi
+
+# Function to log in to Azure and select a subscription
+loginAndSetSubscription() {
+    # Perform Azure login
+    echo "Logging into Azure..."
+    az login --output none
+
+    # List subscriptions and allow user to choose one
+    echo "Fetching subscriptions..."
+    local subscriptions=$(az account list --query "[].{name:name}" --output tsv)
+
+    if [ -z "$subscriptions" ]; then
+        echo "No Azure subscriptions available."
+        return 1
+    fi
+
+    # Use fzf or similar tool for interactive selection
+    echo "Select a subscription:"
+    local selectedSub=$(echo "$subscriptions" | fzf --tac)
+
+    if [ -z "$selectedSub" ]; then
+        echo "No subscription selected. Exiting."
+        return 1
+    fi
+
+    # Set the chosen subscription
+    local subId=$(az account list --query "[?name=='$selectedSub'].id" --output tsv)
+    az account set --subscription "$subId"
+    echo "Subscription set to '$selectedSub'."
+}
+
+# Main logic
+loginAndSetSubscription
